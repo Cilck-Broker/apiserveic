@@ -1,0 +1,14 @@
+version: '2'
+
+services:
+  web:
+    platform: linux/amd64
+    container_name: 7careplus
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/var/www/
+    ports:
+      - 8080:8080
+    

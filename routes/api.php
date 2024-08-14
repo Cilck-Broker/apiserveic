@@ -2,7 +2,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ChackPrickController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,5 +14,6 @@ use App\Http\Controllers\ChackPrickController;
 |
 */
 
-
-Route::post('/getMark', [ChackPrickController::class, 'getMark'])->name('getMark');
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
