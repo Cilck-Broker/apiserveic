@@ -18,5 +18,7 @@ use App\Http\Controllers\APIServiceController;
 //     return $request->user();
 // });
 
-Route::post('/getMark', [APIServiceController::class, 'getMark'])->middleware('auth.api');
-Route::post('/getDataModel', [APIServiceController::class, 'getDataModel'])->middleware('auth.api');
+Route::post('/getMark',         [APIServiceController::class, 'getMark'])->middleware('auth.api');
+Route::post('/getDataModel',    [APIServiceController::class, 'getDataModel'])->middleware('auth.api');
+Route::post('/getCC',           [APIServiceController::class, 'getCC'])->middleware('auth.api');
+Route::post('/getPrice',        [APIServiceController::class, 'getPrice'])->middleware('auth.api');
