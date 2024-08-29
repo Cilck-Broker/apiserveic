@@ -105,11 +105,11 @@ class APIServiceController extends Controller
                                     return $query->where('redbook_tks_cc', $cc);
                                 })
                                 ->first();
-        dd($ck_redbook);
-        $balanceCost = isset($ck_redbook->redbook_tks_goodretail) ? $ck_redbook->redbook_tks_goodretail : 0;
+        $redbook_tks_goodretail = $ck_redbook->redbook_tks_goodretail;
+        // $balanceCost = isset($ck_redbook->redbook_tks_goodretail) ? $ck_redbook->redbook_tks_goodretail : 0;
 
         // Build the main query
-        $query = DB::connection("Conn_mysql")
+        $results = DB::connection("Conn_mysql")
                                 ->table('ck_insurance')
                                 ->leftJoin('ck_insurance_cost', 'ck_insurance.insurance_id', '=', 'ck_insurance_cost.insurance_id')
                                 ->leftJoin('ck_insurer_roadside', function ($join) {
@@ -117,50 +117,45 @@ class APIServiceController extends Controller
                                         ->on('ck_insurance.insurance_type', '=', 'ck_insurer_roadside.insurance_type');
                                 })
                                 ->leftJoin('conditionpay', 'ck_insurance.insurance_insurer', '=', 'conditionpay.insurance_Name')
-                                ->select(
-                                    'ck_insurance.*',
-                                    'ck_insurance_cost.*',
-                                    'ck_insurer_roadside.contact',
-                                    'ck_insurer_roadside.description',
-                                    'conditionpay.ConditionPay_id AS condiPayID',
-                                    'conditionpay.Status AS condiPayStatus'
-                                )
-                                ->where('ck_insurance_cost.inscost_brand', $_REQUEST['brand'])
-                                ->when(isset($_REQUEST['user']) && $_REQUEST['user'] !== "gobear", function ($query) {
-                                    if ($_REQUEST['class'] !== "all") {
-                                        $query->where('ck_insurance.insurance_type', $_REQUEST['class']);
-                                    }
+                                ->select([
+                                    DB::raw("CONCAT(ck_insurance.insurance_Number, '-', ck_insurance_cost.inscost_id) as package_id"),
+                                    'ck_insurance.insurance_Number as package_code',
+                                    'ck_insurance.insurance_Name as package_name',
+                                    'ck_insurance.insurance_insurer as package_insurer',
+                                    'ck_insurance.insurance_repair as package_repair',
+                                    'ck_insurance.insurance_cc_types as package_cc_type',
+                                    'ck_insurance.insurance_license_types as package_license_type',
+                                    'ck_insurance.insurance_deductible as package_deductible',
+                                    'ck_insurance.insurance_end as package_end',
+                                    'ck_insurance.insurance_code as package_car_code',
+                                    'ck_insurance.insurance_type as package_insurance_type',
+                                    'ck_insurance_cost.inscost_minamount as package_min_insured',
+                                    'ck_insurance_cost.inscost_maxamount as package_max_insured',
+                                    'ck_insurance_cost.inscost_premamount as package_net_premium',
+                                    'ck_insurance_cost.inscost_taxamount as package_total_premium',
+                                    'ck_insurance_cost.inscost_minyear as package_min_caryear',
+                                    'ck_insurance_cost.inscost_maxyear as package_max_caryear'
+                                ])
+                                ->where('ck_insurance_cost.inscost_brand', $make)
+                                ->when($nameclass, function ($query, $nameclass) {
+                                    $query->where('ck_insurance.insurance_type', $nameclass);
                                 })
-                                ->where('ck_insurance_cost.inscost_gen', $_REQUEST['generation'])
-                                ->when($_REQUEST['insurers'] != '0', function ($query) {
-                                    $query->where('ck_insurance.insurance_insurer', $_REQUEST['insurers']);
+                                ->where('ck_insurance_cost.inscost_gen', $model)
+                                ->when($insurer != '', function ($query, $insurer) {
+                                    $query->where('ck_insurance.insurance_insurer', $insurer);
                                 })
-                                ->when($rs_repair, function ($query) use ($rs_repair) {
-                                    $query->where('ck_insurance.insurance_repair', $rs_repair);
+                                ->when($car_repair, function ($query) use ($car_repair) {
+                                    $query->where('ck_insurance.insurance_repair', $car_repair);
                                 })
-                                ->when($whereCC > 2000, function ($query) {
+                                ->when($cc > 2000, function ($query) {
                                     $query->whereIn('ck_insurance.insurance_cc_types', [0, 2]);
                                 }, function ($query) {
                                     $query->whereIn('ck_insurance.insurance_cc_types', [0, 1]);
                                 })
-                                ->when($_REQUEST['deduct'] == 0 && $_REQUEST['deductmile'] == 0, function ($query) {
-                                    $query->where('ck_insurance.insurance_deductible', 0);
-                                })
-                                ->when($_REQUEST['deduct'] == 1 && $_REQUEST['deductmile'] == 0, function ($query) {
-                                    $query->where('ck_insurance.insurance_deductible', '>', 100);
-                                })
-                                ->when($_REQUEST['deduct'] == 0 && $_REQUEST['deductmile'] == 1, function ($query) {
-                                    $query->where('ck_insurance.insurance_deductible', 100);
-                                })
-                                ->when($_REQUEST['deduct'] == 1 && $_REQUEST['deductmile'] == 1, function ($query) {
-                                    $query->where('ck_insurance.insurance_deductible', '!=', 0);
-                                })
-                                ->where('ck_insurance.insurance_end', '>=', date("Y-m-d"))
-                                ->whereBetween($minyear, ['ck_insurance_cost.inscost_minyear', 'ck_insurance_cost.inscost_maxyear'])
                                 ->where('ck_insurance.status_internal', 1)
-                                ->orderBy('ck_insurance_cost.inscost_taxamount', 'asc');
+                                ->orderBy('ck_insurance_cost.inscost_taxamount', 'asc')
+                                ->get();
 
-        // Get the results
-        $results = $query->get();
+        dd($results);
     }
 }
