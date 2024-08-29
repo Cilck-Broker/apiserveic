@@ -102,12 +102,15 @@ class APIServiceController extends Controller
                                 ->where('redbook_tks_make', $make)
                                 ->where('redbook_tks_model', $model)
                                 ->where('redbook_tks_yeargroup', $year)
-                                ->when($cc, function ($query) {
-                                    return $query->where('redbook_tks_cc', $cc);
+                                ->when($cc, function ($query, $cc) {
+                                    return $query->where('redbook_tks_cc', $cc."cc");
                                 })
                                 ->first();
-        $redbook_tks_goodretail = $ck_redbook->redbook_tks_goodretail;
-        // $balanceCost = isset($ck_redbook->redbook_tks_goodretail) ? $ck_redbook->redbook_tks_goodretail : 0;
+        
+        $redbook_tks_goodretail = "";        
+        if($ck_redbook){
+            $redbook_tks_goodretail = $ck_redbook->redbook_tks_goodretail;
+        }
 
         // Build the main query
         $results = DB::connection("Conn_mysql")
@@ -135,7 +138,8 @@ class APIServiceController extends Controller
                                     'ck_insurance_cost.inscost_premamount as package_net_premium',
                                     'ck_insurance_cost.inscost_taxamount as package_total_premium',
                                     'ck_insurance_cost.inscost_minyear as package_min_caryear',
-                                    'ck_insurance_cost.inscost_maxyear as package_max_caryear'
+                                    'ck_insurance_cost.inscost_maxyear as package_max_caryear',
+                                    'ck_insurance.insurance_id'
                                 ])
                                 ->where('ck_insurance_cost.inscost_brand', $make)
                                 ->when($nameclass, function ($query, $nameclass) {
@@ -156,7 +160,92 @@ class APIServiceController extends Controller
                                 ->where('ck_insurance.status_internal', 1)
                                 ->orderBy('ck_insurance_cost.inscost_taxamount', 'asc')
                                 ->get();
+        $arr = [];
+        foreach ($results as $key => $row) {
+            $protect1 = DB::connection("Conn_mysql")->table('ck_insurance_protect')
+                            ->join('ck_protect', 'ck_insurance_protect.protect_name', '=', 'ck_protect.protect_id')
+                            ->where('ck_insurance_protect.insurance_id', $row->insurance_id)
+                            ->where('ck_protect.protect_type', 'ความรับผิดชอบต่อบุคคลภายนอก')
+                            ->select('*')
+                            ->get();
 
-        dd($results);
+            $protect2 = DB::connection("Conn_mysql")->table('ck_insurance_protect')
+                            ->join('ck_protect', 'ck_insurance_protect.protect_name', '=', 'ck_protect.protect_id')
+                            ->where('ck_insurance_protect.insurance_id', $row->insurance_id)
+                            ->where('ck_protect.protect_type', 'ความรับผิดต่อตัวรถยนต์')
+                            ->select('*')
+                            ->get();
+
+            $protect3 = DB::connection("Conn_mysql")->table('ck_insurance_protect')
+                            ->join('ck_protect', 'ck_insurance_protect.protect_name', '=', 'ck_protect.protect_id')
+                            ->where('ck_insurance_protect.insurance_id', $row->insurance_id)
+                            ->where('ck_protect.protect_type', 'ความคุ้มครองตามเอกสารแนบท้าย')
+                            ->select('*')
+                            ->get();
+            
+            $arr[$key] = [
+                "package_id"                => $row->package_id,
+                "package_code"              => $row->package_code,
+                "package_name"              => $row->package_name,
+                "package_insurer"           => $row->package_insurer,
+                "package_repair"            => $row->package_repair,
+                "package_cc_type"           => $row->package_cc_type,
+                "package_license_type"      => $row->package_license_type,
+                "package_deductible"        => $row->package_deductible,
+                "package_end"               => $row->package_end,
+                "package_car_code"          => $row->package_car_code,
+                "package_insurance_type"    => $row->package_insurance_type,
+                "package_sum_insured"       => $redbook_tks_goodretail,
+                "package_min_insured"       => $row->package_min_insured,
+                "package_max_insured"       => $row->package_max_insured,
+                "package_net_premium"       => $row->package_net_premium,
+                "package_total_premium"     => $row->package_total_premium,
+                "package_min_caryear"       => $row->package_min_caryear,
+                "package_max_caryear"       => $row->package_max_caryear,
+            ];
+
+            foreach ($protect1 as $key => $prot1) {
+                $protect_code = $prot1->protect_code;
+                switch ($protect_code) {
+                    case 'C502': $aCode = "propertyCoverage";break;
+                    case 'C503': $aCode = "deathPerPersonCoverage";break;
+                    case 'C504': $aCode = "maxDeathCoverage";break;
+                }
+                $arr[$key][$aCode] = $prot1->protect_cost;
+            }
+
+            foreach ($protect2 as $key => $prot2) {
+                $protect_code = $prot2->protect_code;
+                switch ($protect_code) {
+                    case 'C536': $aCode = "vehiclesumInsuredAmount";break;
+                    case 'C507': $aCode = "isFireNTheft";break;
+                    case 'C508': $aCode = "isFlood";break;
+                }
+                if($aCode == 'C508'){
+                    $arr[$key][$aCode] = $prot1->protect_cost == 1 ? true : false;
+                }else{
+                    $arr[$key][$aCode] = $prot1->protect_cost;
+                }
+            }
+
+            foreach ($protect2 as $key => $prot2) {
+                $protect_code = $prot2->protect_code;
+                switch ($protect_code) {
+                    case 'C517': $aCode = "paCoverage";break;
+                    case 'C525': $aCode = "medicalCoverage";break;
+                    case 'C532': $aCode = "bailBondCoverage";break;
+                }
+                $arr[$key][$aCode] = $prot1->protect_cost;
+            }
+        }
+
+        $response = [
+            'code' => 200,
+            'message' => 'success',
+            'data' => $arr
+        ];
+
+        return response()->json($response);
+
     }
 }
