@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\MyUser;
-use App\Models\Redbook; // ชื่อโมเดลที่ต้องการ
+use App\Models\Redbook;
+use DB;
 
 class APIServiceController extends Controller
 {
