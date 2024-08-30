@@ -195,7 +195,6 @@ class APIServiceController extends Controller
                 "package_end"               => $row->package_end,
                 "package_car_code"          => $row->package_car_code,
                 "package_insurance_type"    => $row->package_insurance_type,
-                "package_sum_insured"       => $redbook_tks_goodretail,
                 "package_min_insured"       => $row->package_min_insured,
                 "package_max_insured"       => $row->package_max_insured,
                 "package_net_premium"       => $row->package_net_premium,
@@ -203,6 +202,14 @@ class APIServiceController extends Controller
                 "package_min_caryear"       => $row->package_min_caryear,
                 "package_max_caryear"       => $row->package_max_caryear,
             ];
+
+            if($row->package_min_insured > 0 && $row->package_max_insured > 0){
+                $arr[$key]["package_sum_insured"] = $redbook_tks_goodretail;
+            
+            }else if($row->package_min_insured > 0 && $row->package_max_insured == 0){
+                $arr[$key]["package_sum_insured"] = $row->package_min_insured;
+
+            }
 
             foreach ($protect1 as $key => $prot1) {
                 $protect_code = $prot1->protect_code;
