@@ -9,6 +9,28 @@ use DB;
 
 class APIServiceController extends Controller
 {
+    public function getInsurer(Request $request){
+        $ck_insurer = DB::connection("Conn_mysql")
+                                ->table('ck_insurer')
+                                ->select('insurer_name as insurer')
+                                
+                                ->get();
+
+        // จัดกลุ่มข้อมูลเป็น array ของ makename
+        $insurer = [];
+        foreach ($ck_insurer as $item) {
+            $insurer[] = ['insurer' => $item->insurer];
+        }
+
+        // สร้าง response
+        $response = [
+            'code' => 200,
+            'message' => 'success',
+            'data' => $insurer
+        ];
+
+    }
+
     public function getMark(Request $request)
     {
         $make = Redbook::select('redbook_tks_make AS makename')
@@ -73,7 +95,9 @@ class APIServiceController extends Controller
         // จัดกลุ่มข้อมูลเป็น array ของ makename
         $modelData = [];
         foreach ($car_model as $item) {
-            $modelData[] = ['cc' => $item->cc];
+            // $modelData[] = ['cc' => $item->cc];
+            $ccValue = preg_replace('/\D/', '', $item->cc);
+            $modelData[] = ['cc' => $ccValue];
         }
 
         // สร้าง response
