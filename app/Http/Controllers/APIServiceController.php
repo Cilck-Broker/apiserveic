@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\MyUser;
 use App\Models\Redbook;
 use DB;
+use Log;
 
 class APIServiceController extends Controller
 {
@@ -29,6 +30,7 @@ class APIServiceController extends Controller
             'data' => $insurer
         ];
 
+        return response()->json($response);
     }
 
     public function getMark(Request $request)
@@ -91,11 +93,10 @@ class APIServiceController extends Controller
                         ->groupBy('redbook_tks_cc')
                         ->orderBy('redbook_tks_cc', 'asc')
                         ->get();
-
+        
         // จัดกลุ่มข้อมูลเป็น array ของ makename
         $modelData = [];
-        foreach ($car_model as $item) {
-            // $modelData[] = ['cc' => $item->cc];
+        foreach ($car_cc as $item) {
             $ccValue = preg_replace('/\D/', '', $item->cc);
             $modelData[] = ['cc' => $ccValue];
         }
@@ -119,6 +120,20 @@ class APIServiceController extends Controller
         $nameclass  = $request->input('nameclass');
         $car_repair = $request->input('car_repair');
         $insurer    = $request->input('insurer');
+        
+        if(!empty($year)){
+            $minyear = (now()->year - $year) + 1;
+        }
+
+        Log::info('Request data:', [
+            'make' => $make,
+            'model' => $model,
+            'year' => $year,
+            'cc' => $cc,
+            'nameclass' => $nameclass,
+            'car_repair' => $car_repair,
+            'insurer' => $insurer,
+        ]);
 
         // Get balance cost from redbook
         $ck_redbook = DB::connection("Conn_mysql")
@@ -181,9 +196,15 @@ class APIServiceController extends Controller
                                 }, function ($query) {
                                     $query->whereIn('ck_insurance.insurance_cc_types', [0, 1]);
                                 })
-                                ->where('ck_insurance.status_internal', 1)
+                                ->when(isset($minyear), function ($query) use ($minyear) {
+                                    // ใช้ whereRaw เพื่อเพิ่มเงื่อนไข BETWEEN
+                                    $query->whereRaw('? BETWEEN ck_insurance_cost.inscost_minyear AND ck_insurance_cost.inscost_maxyear', [$minyear]);
+                                })
+                                ->where('ck_insurance.insurance_end', '>=', date('Y-m-d'))
+                                ->where('ck_insurance.status', 1)
                                 ->orderBy('ck_insurance_cost.inscost_taxamount', 'asc')
                                 ->get();
+
         $arr = [];
         foreach ($results as $key => $row) {
             $protect1 = DB::connection("Conn_mysql")->table('ck_insurance_protect')
@@ -208,6 +229,7 @@ class APIServiceController extends Controller
                             ->get();
             
             $arr[$key] = [
+                "insurance_id"              => $row->insurance_id,
                 "package_id"                => $row->package_id,
                 "package_code"              => $row->package_code,
                 "package_name"              => $row->package_name,
@@ -235,7 +257,7 @@ class APIServiceController extends Controller
 
             }
 
-            foreach ($protect1 as $key => $prot1) {
+            foreach ($protect1 as $key1 => $prot1) {
                 $protect_code = $prot1->protect_code;
                 switch ($protect_code) {
                     case 'C502': $aCode = "propertyCoverage";break;
@@ -245,7 +267,7 @@ class APIServiceController extends Controller
                 $arr[$key][$aCode] = $prot1->protect_cost;
             }
 
-            foreach ($protect2 as $key => $prot2) {
+            foreach ($protect2 as $key2 => $prot2) {
                 $protect_code = $prot2->protect_code;
                 switch ($protect_code) {
                     case 'C536': $aCode = "vehiclesumInsuredAmount";break;
@@ -253,20 +275,20 @@ class APIServiceController extends Controller
                     case 'C508': $aCode = "isFlood";break;
                 }
                 if($aCode == 'C508'){
-                    $arr[$key][$aCode] = $prot1->protect_cost == 1 ? true : false;
+                    $arr[$key][$aCode] = $prot2->protect_cost == 1 ? true : false;
                 }else{
-                    $arr[$key][$aCode] = $prot1->protect_cost;
+                    $arr[$key][$aCode] = $prot2->protect_cost;
                 }
             }
 
-            foreach ($protect2 as $key => $prot2) {
-                $protect_code = $prot2->protect_code;
+            foreach ($protect3 as $key3 => $prot3) {
+                $protect_code = $prot3->protect_code;
                 switch ($protect_code) {
                     case 'C517': $aCode = "paCoverage";break;
                     case 'C525': $aCode = "medicalCoverage";break;
                     case 'C532': $aCode = "bailBondCoverage";break;
                 }
-                $arr[$key][$aCode] = $prot1->protect_cost;
+                $arr[$key][$aCode] = $prot3->protect_cost;
             }
         }
 
