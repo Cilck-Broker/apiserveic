@@ -120,7 +120,8 @@ class APIServiceController extends Controller
         $nameclass  = $request->input('nameclass');
         $car_repair = $request->input('car_repair');
         $insurer    = $request->input('insurer');
-        
+        $deduct     = $request->input('deduct');
+
         if(!empty($year)){
             $minyear = (now()->year - $year) + 1;
         }
@@ -133,6 +134,7 @@ class APIServiceController extends Controller
             'nameclass' => $nameclass,
             'car_repair' => $car_repair,
             'insurer' => $insurer,
+            'deduct' => $deduct,
         ]);
 
         // Get balance cost from redbook
@@ -152,59 +154,72 @@ class APIServiceController extends Controller
         }
 
         // Build the main query
-        $results = DB::connection("Conn_mysql")
-                                ->table('ck_insurance')
-                                ->leftJoin('ck_insurance_cost', 'ck_insurance.insurance_id', '=', 'ck_insurance_cost.insurance_id')
-                                ->leftJoin('ck_insurer_roadside', function ($join) {
-                                    $join->on('ck_insurance.insurance_insurer', '=', 'ck_insurer_roadside.insurance_Name')
-                                        ->on('ck_insurance.insurance_type', '=', 'ck_insurer_roadside.insurance_type');
-                                })
-                                ->leftJoin('conditionpay', 'ck_insurance.insurance_insurer', '=', 'conditionpay.insurance_Name')
-                                ->select([
-                                    DB::raw("CONCAT(ck_insurance.insurance_Number, '-', ck_insurance_cost.inscost_id) as package_id"),
-                                    'ck_insurance.insurance_Number as package_code',
-                                    'ck_insurance.insurance_Name as package_name',
-                                    'ck_insurance.insurance_insurer as package_insurer',
-                                    'ck_insurance.insurance_repair as package_repair',
-                                    'ck_insurance.insurance_cc_types as package_cc_type',
-                                    'ck_insurance.insurance_license_types as package_license_type',
-                                    'ck_insurance.insurance_deductible as package_deductible',
-                                    'ck_insurance.insurance_end as package_end',
-                                    'ck_insurance.insurance_code as package_car_code',
-                                    'ck_insurance.insurance_type as package_insurance_type',
-                                    'ck_insurance_cost.inscost_minamount as package_min_insured',
-                                    'ck_insurance_cost.inscost_maxamount as package_max_insured',
-                                    'ck_insurance_cost.inscost_premamount as package_net_premium',
-                                    'ck_insurance_cost.inscost_taxamount as package_total_premium',
-                                    'ck_insurance_cost.inscost_minyear as package_min_caryear',
-                                    'ck_insurance_cost.inscost_maxyear as package_max_caryear',
-                                    'ck_insurance.insurance_id'
-                                ])
-                                ->where('ck_insurance_cost.inscost_brand', $make)
-                                ->when($nameclass, function ($query, $nameclass) {
-                                    $query->where('ck_insurance.insurance_type', $nameclass);
-                                })
-                                ->where('ck_insurance_cost.inscost_gen', $model)
-                                ->when($insurer != '', function ($query, $insurer) {
-                                    $query->where('ck_insurance.insurance_insurer', $insurer);
-                                })
-                                ->when($car_repair, function ($query) use ($car_repair) {
-                                    $query->where('ck_insurance.insurance_repair', $car_repair);
-                                })
-                                ->when($cc > 2000, function ($query) {
-                                    $query->whereIn('ck_insurance.insurance_cc_types', [0, 2]);
-                                }, function ($query) {
-                                    $query->whereIn('ck_insurance.insurance_cc_types', [0, 1]);
-                                })
-                                ->when(isset($minyear), function ($query) use ($minyear) {
-                                    // ใช้ whereRaw เพื่อเพิ่มเงื่อนไข BETWEEN
-                                    $query->whereRaw('? BETWEEN ck_insurance_cost.inscost_minyear AND ck_insurance_cost.inscost_maxyear', [$minyear]);
-                                })
-                                ->where('ck_insurance.insurance_end', '>=', date('Y-m-d'))
-                                ->where('ck_insurance.status', 1)
-                                ->orderBy('ck_insurance_cost.inscost_taxamount', 'asc')
-                                ->get();
+        $txtSql =  "select
+                        CONCAT(ck_insurance.insurance_Number, '-', ck_insurance_cost.inscost_id) as package_id,
+                        `ck_insurance`.`insurance_Number` as `package_code`,
+                        `ck_insurance`.`insurance_Name` as `package_name`,
+                        `ck_insurance`.`insurance_insurer` as `package_insurer`,
+                        `ck_insurance`.`insurance_repair` as `package_repair`,
+                        `ck_insurance`.`insurance_cc_types` as `package_cc_type`,
+                        `ck_insurance`.`insurance_license_types` as `package_license_type`,
+                        `ck_insurance`.`insurance_deductible` as `package_deductible`,
+                        `ck_insurance`.`insurance_end` as `package_end`,
+                        `ck_insurance`.`insurance_code` as `package_car_code`,
+                        `ck_insurance`.`insurance_type` as `package_insurance_type`,
+                        `ck_insurance_cost`.`inscost_minamount` as `package_min_insured`,
+                        `ck_insurance_cost`.`inscost_maxamount` as `package_max_insured`,
+                        `ck_insurance_cost`.`inscost_premamount` as `package_net_premium`,
+                        `ck_insurance_cost`.`inscost_taxamount` as `package_total_premium`,
+                        `ck_insurance_cost`.`inscost_minyear` as `package_min_caryear`,
+                        `ck_insurance_cost`.`inscost_maxyear` as `package_max_caryear`,
+                        `ck_insurance`.`insurance_id`,
+                        `ck_insurance`.`status`,
+                        `ck_insurance`.`no_protect`
+                    from
+                        `ck_insurance`
+                    left join `ck_insurance_cost` 	on `ck_insurance`.`insurance_id` 		= `ck_insurance_cost`.`insurance_id`
+                    left join `ck_insurer_roadside` on `ck_insurance`.`insurance_insurer` 	= `ck_insurer_roadside`.`insurance_Name` 
+                                                    and`ck_insurance`.`insurance_type` 		= `ck_insurer_roadside`.`insurance_type`
+                    left join `conditionpay` 		on `ck_insurance`.`insurance_insurer` 	= `conditionpay`.`insurance_Name`
+                    where 	`ck_insurance`.`status` = '1' 
+                            and `ck_insurance_cost`.`inscost_brand` = '".$make."'
+                            and `ck_insurance`.`insurance_type` = '".$nameclass."'
+                            and `ck_insurance_cost`.`inscost_gen` = '".$model."'
+                            and ck_insurance.status = '1'";
+        if(!empty($insurer)){
+            $txtSql .= "    and `ck_insurance`.`insurance_insurer` LIKE '%".$insurer."%'";
+        }     
 
+        if($cc > 2000){
+            $txtSql .= "    and `ck_insurance`.`insurance_cc_types` in (0, 2)";
+        }else{
+            $txtSql .= "    and `ck_insurance`.`insurance_cc_types` in (0, 1)";
+        }
+
+        if(empty($deduct)){
+            $txtSql .= "    and ck_insurance.insurance_deductible = 0";
+        }else{
+            $txtSql .= "    and ck_insurance.insurance_deductible <> 0";
+        }
+
+        if(isset($minyear)){
+            $txtSql .= "    and ".$minyear." BETWEEN ck_insurance_cost.inscost_minyear AND ck_insurance_cost.inscost_maxyear";
+        }
+        
+        $txtSql .= "        and `ck_insurance`.`insurance_end` >= '".date('Y-m-d')."'";
+        
+        $txtSql .= "        and (
+                                case
+                                        when (ck_insurance.insurance_type = '1'
+                                            and ck_insurance.insurance_deductible = 0)
+                                then ".$redbook_tks_goodretail." between ck_insurance_cost.inscost_minamount and ck_insurance_cost.inscost_maxamount
+                                        else ck_insurance_cost.inscost_minamount >= 0
+                                    end
+                                )
+                    order by `ck_insurance_cost`.`inscost_taxamount` asc";
+
+        $results = DB::connection("Conn_mysql")->select($txtSql);
+        
         $arr = [];
         foreach ($results as $key => $row) {
             $protect1 = DB::connection("Conn_mysql")->table('ck_insurance_protect')
@@ -229,6 +244,7 @@ class APIServiceController extends Controller
                             ->get();
             
             $arr[$key] = [
+                "status"                    => $row->status,
                 "insurance_id"              => $row->insurance_id,
                 "package_id"                => $row->package_id,
                 "package_code"              => $row->package_code,
@@ -247,6 +263,7 @@ class APIServiceController extends Controller
                 "package_total_premium"     => $row->package_total_premium,
                 "package_min_caryear"       => $row->package_min_caryear,
                 "package_max_caryear"       => $row->package_max_caryear,
+                "peopleCoverage"            => $row->no_protect,
             ];
 
             if($row->package_min_insured > 0 && $row->package_max_insured > 0){
