@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\MyUser;
 use App\Models\Redbook;
+use App\Models\LogCheckpriceApi;
 use DB;
 use Log;
 
