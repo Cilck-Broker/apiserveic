@@ -151,19 +151,8 @@ class APIServiceController extends Controller
         Log::info('Request captured:', [
             'ip'        => $ipAddress,
             'username'  => $username,
-            'request'   => $request->all()  // รับข้อมูลทุกอย่างจาก request
+            'request'   => $request->all()
         ]);
-        
-        // Log::info('Request data:', [
-        //     'make'  => $make,
-        //     'model' => $model,
-        //     'year'  => $year,
-        //     'cc'    => $cc,
-        //     'nameclass' => $nameclass,
-        //     'car_repair'=> $car_repair,
-        //     'insurer'   => $insurer,
-        //     'deduct'    => $deduct,
-        // ]);
 
         // Get balance cost from redbook
         $ck_redbook = DB::connection("Conn_mysql")
