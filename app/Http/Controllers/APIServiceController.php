@@ -174,7 +174,8 @@ class APIServiceController extends Controller
                         `ck_insurance_cost`.`inscost_maxyear` as `package_max_caryear`,
                         `ck_insurance`.`insurance_id`,
                         `ck_insurance`.`status`,
-                        `ck_insurance`.`no_protect`
+                        `ck_insurance`.`no_protect`,
+                        `ck_insurance`.`insurance_desc`
                     from
                         `ck_insurance`
                     left join `ck_insurance_cost` 	on `ck_insurance`.`insurance_id` 		= `ck_insurance_cost`.`insurance_id`
@@ -264,6 +265,7 @@ class APIServiceController extends Controller
                 "package_min_caryear"       => $row->package_min_caryear,
                 "package_max_caryear"       => $row->package_max_caryear,
                 "peopleCoverage"            => $row->no_protect,
+                "remark"                    => $row->insurance_desc,                
             ];
 
             if($row->package_min_insured > 0 && $row->package_max_insured > 0){
@@ -294,7 +296,7 @@ class APIServiceController extends Controller
                 if($aCode == 'C508'){
                     $arr[$key][$aCode] = $prot2->protect_cost == 1 ? true : false;
                 }else{
-                    $arr[$key][$aCode] = $prot2->protect_cost;
+                    $arr[$key][$aCode] = $redbook_tks_goodretail;
                 }
             }
 

@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\MyUser;
+use App\Models\Personnel;
 
 class AuthenticateAPI
 {
@@ -24,10 +24,10 @@ class AuthenticateAPI
         list($username, $password) = explode(':', $credentials, 2);
 
         // ค้นหาผู้ใช้จากตาราง MyUser โดยใช้ username
-        $user = MyUser::where('User_ID', $username)->first();
+        $user = Personnel::where('personnel_code', $username)->first();
 
         // ตรวจสอบว่าพบผู้ใช้และรหัสผ่านตรงกันหรือไม่
-        if ($user && $user->User_Password === $password) {
+        if ($user && $user->personnel_password === $password) {
             // ให้คำร้องขอผ่านไปยังขั้นตอนต่อไป
             return $next($request);
         }
