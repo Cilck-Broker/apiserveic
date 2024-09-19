@@ -113,6 +113,9 @@ class APIServiceController extends Controller
     }
 
     public function getPrice(Request $request){
+        $username   = $request->getUser();
+        $ipAddress  = $request->ip();
+
         $make   = $request->input('make');
         $model  = $request->input('model');
         $year   = $request->input('year');
@@ -128,8 +131,8 @@ class APIServiceController extends Controller
         }
 
         $data = [
-            'dates' => now(),
-            // 'page' => '',
+            'dates'         => now(),
+            'page'          => $username,
             // 'package'       => 'premium',
             'insurercode'   => $insurer,
             'class'         => $nameclass,
@@ -139,14 +142,16 @@ class APIServiceController extends Controller
             'year'          => $year,
             'cc'            => $cc,
             // 'register' => '2022',
-            // 'ipaddress' => '192.168.1.1',
-            // 'agent' => '',
+            'ipaddress'     => $ipAddress,
+            'agent'         => $username,
         ];
         
         LogCheckpriceApi::create($data);
 
         Log::info('Request captured:', [
-            'request' => $request->all()  // รับข้อมูลทุกอย่างจาก request
+            'ip'        => $ipAddress,
+            'username'  => $username,
+            'request'   => $request->all()  // รับข้อมูลทุกอย่างจาก request
         ]);
         
         // Log::info('Request data:', [
