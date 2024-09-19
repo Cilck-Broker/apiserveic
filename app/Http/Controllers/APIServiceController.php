@@ -127,16 +127,38 @@ class APIServiceController extends Controller
             $minyear = (now()->year - $year) + 1;
         }
 
-        Log::info('Request data:', [
-            'make' => $make,
-            'model' => $model,
-            'year' => $year,
-            'cc' => $cc,
-            'nameclass' => $nameclass,
-            'car_repair' => $car_repair,
-            'insurer' => $insurer,
-            'deduct' => $deduct,
+        $data = [
+            'dates' => now(),
+            // 'page' => '',
+            // 'package'       => 'premium',
+            'insurercode'   => $insurer,
+            'class'         => $nameclass,
+            'repairs'       => $car_repair,
+            'make'          => $make,
+            'model'         => $model,
+            'year'          => $year,
+            'cc'            => $cc,
+            // 'register' => '2022',
+            // 'ipaddress' => '192.168.1.1',
+            // 'agent' => '',
+        ];
+        
+        LogCheckpriceApi::create($data);
+
+        Log::info('Request captured:', [
+            'request' => $request->all()  // รับข้อมูลทุกอย่างจาก request
         ]);
+        
+        // Log::info('Request data:', [
+        //     'make'  => $make,
+        //     'model' => $model,
+        //     'year'  => $year,
+        //     'cc'    => $cc,
+        //     'nameclass' => $nameclass,
+        //     'car_repair'=> $car_repair,
+        //     'insurer'   => $insurer,
+        //     'deduct'    => $deduct,
+        // ]);
 
         // Get balance cost from redbook
         $ck_redbook = DB::connection("Conn_mysql")
